@@ -3,12 +3,14 @@ var twitter = require('twitter');
 var wordfilter = require('wordfilter');
 var chalk = require('chalk');
 var config = require('config');
-var debug_log = require('pretty-good-log');
+var debug_log = require('pretty-good-log')('twitter');
 
-function Twitbot(data) {
+function Twitbot(data, data2) {
+    data = Object.assign({}, data, data2);
     this.dummy = data.silent;
     this.name = data.username;
     this.client = new twitter(data.creds);
+    this.allow = data.allow;
 }
 
 Twitbot.prototype.isTweetSuitable = function(t) {
@@ -22,6 +24,12 @@ Twitbot.prototype.isTweetSuitable = function(t) {
         ['rt', !t.retweeted_status],
         ['id', t.user.screen_name !== this.name]
     ];
+    if(this.allow) {
+        var allow = this.allow;
+        tests = tests.filter(function(t) {
+            return (allow.indexOf(t[0]) % 2) !== 0;
+        });
+    }
     var s = '';
     var ret = true;
     for(var i = 0; i < tests.length; i++) {
@@ -37,12 +45,12 @@ Twitbot.prototype.isTweetSuitable = function(t) {
         s = chalk.green(s);
         return true;
     } else {
-        debug_log('rejected tweet');
+        debug_log(s, 'rejected tweet');
         return false;
     }
 };
 
-Twitbot.prototype.stream = function(s, callback) {
+Twitbot.prototype.stream = function(s, callback, allow) {
     var client = this.client;
     var me = this;
 
@@ -50,8 +58,10 @@ Twitbot.prototype.stream = function(s, callback) {
         var tweets = [];
         client.stream('statuses/filter', { track: s }, function(stream) {
             stream.on('data', function(tweet) {
-                if(me.isTweetSuitable(tweet)) {
-                    callback(tweet);
+                if(typeof(tweet.limit) === 'undefined') {
+                    if(me.isTweetSuitable(tweet, allow)) {
+                        callback(tweet);
+                    }
                 }
             });
 
@@ -65,16 +75,20 @@ Twitbot.prototype.stream = function(s, callback) {
     });
 };
 
-Twitbot.prototype.search = function(term) {
+Twitbot.prototype.search = function(term, allow) {
     var client = this.client;
     var me = this;
     return new Promise(function(resolve, reject) {
-        client.get('search/tweets', { lang: 'en', q: term, count: 100 }, function(error, tweets, response) {
+        client.get('search/tweets', { lang: 'en', 
+            q: term, 
+            result_type: 'recent',
+            count: 100 
+        }, function(error, tweets, response) {
             if(error) {
                 reject(error);
             } else {
                 var filtered = tweets.statuses.filter(function(t) {
-                    return me.isTweetSuitable(t);
+                    return me.isTweetSuitable(t, allow);
                 });
                 resolve(filtered);
             }
@@ -114,3 +128,4 @@ Twitbot.prototype.tweet = function(s) {
 };
 
 module.exports = Twitbot;
+
