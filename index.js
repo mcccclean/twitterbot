@@ -5,10 +5,10 @@ var chalk = require('chalk');
 var config = require('config');
 var debug_log = require('pretty-good-log');
 
-function Twitbot() {
-    this.dummy = config.get('twitterbot.silent');
-    this.name = config.get('twitterbot.username');
-    this.client = new twitter(config.get('twitterbot.creds'));
+function Twitbot(data) {
+    this.dummy = data.silent;
+    this.name = data.username;
+    this.client = new twitter(data.creds);
 }
 
 Twitbot.prototype.isTweetSuitable = function(t) {
