@@ -4,10 +4,18 @@ var wordfilter = require('wordfilter');
 var chalk = require('chalk');
 var config = require('config');
 var debug_log = require('pretty-good-log')('twitter');
+var emoji = require('node-emoji');
+
+var defaults = {
+    emojify: true,
+    silent: false,
+    allow: null
+};
 
 function Twitbot(data, data2) {
-    data = Object.assign({}, data, data2);
-    this.dummy = data.silent;
+    data = Object.assign(defaults, data, data2);
+    this.emojify = data.emojify;
+    this.silent = data.silent;
     this.name = data.username;
     this.client = new twitter(data.creds);
     this.allow = data.allow;
@@ -110,7 +118,10 @@ Twitbot.prototype.profile = function(description) {
 };
 
 Twitbot.prototype.tweet = function(s) {
-    if(this.dummy) {
+    if(this.emojify) {
+        s = emoji.emojify(s);
+    }
+    if(this.silent) {
         return Promise.resolve(s);
     } else {
         var client = this.client;
